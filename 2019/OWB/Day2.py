@@ -1,14 +1,14 @@
+from datetime import datetime
+from datetime import timedelta
+
 def readInput():
 	file = open("Day2.txt", "r")
 	input = file.read()
 	file.close()
 	lines = [int(i) for i in input.split(",")]
 	return lines
-	
-def puzzle1():
-	lines = readInput()
-	lines[1] = 12
-	lines[2] = 2
+
+def intcode(lines):
 	i = 0
 	while (not lines[i] == 99):
 		#print(lines[i], lines[i+1], lines[i+2], lines[i+3], lines[lines[i+1]], lines[lines[i+2]])
@@ -16,10 +16,14 @@ def puzzle1():
 			lines[lines[i+3]] = lines[lines[i+1]] + lines[lines[i+2]]
 		if lines[i] == 2:
 			lines[lines[i+3]] = lines[lines[i+1]] * lines[lines[i+2]]
-		if not (lines[i] == 1 or lines[i] == 2):
-			print("########### Error: ",lines[i], " ############")
 		i += 4
 	return lines[0]
+	
+def puzzle1():
+	lines = readInput()
+	lines[1] = 12
+	lines[2] = 2
+	return intcode(lines)
 	
 def puzzle2():
 	for j in range(100):
@@ -27,23 +31,12 @@ def puzzle2():
 			lines = readInput()
 			lines[1] = j
 			lines[2] = l
-			i = 0
-			while (not lines[i] == 99):
-				#print(lines[i], lines[i+1], lines[i+2], lines[i+3], lines[lines[i+1]], lines[lines[i+2]])
-				if lines[i] == 1:
-					lines[lines[i+3]] = lines[lines[i+1]] + lines[lines[i+2]]
-				if lines[i] == 2:
-					lines[lines[i+3]] = lines[lines[i+1]] * lines[lines[i+2]]
-				if not (lines[i] == 1 or lines[i] == 2):
-					print("########### Error: ",lines[i], " ############")
-				i += 4
-			print(j, l, lines[0])
+			result = intcode(lines)
+			#print(j, l, lines[0])
 			
-			if lines[0] == 19690720:
+			if result == 19690720:
 				return 100*j + l
 	
 	
 ######### PUZZLE 2 #########
-print("\n***** Day 2 *****")
-print(puzzle1())
-print(puzzle2())
+print("Day 2:", puzzle1(), puzzle2())
