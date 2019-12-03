@@ -44,6 +44,34 @@ def puzzle1():
 	print(overlaps)
 	print(dist)
 	return dist[0]
-	
 
-print(puzzle1())
+def puzzle2():
+	(w1, w2) = readInput()
+	coords1 = trackWire(w1)
+	coords2 = trackWire(w2)
+	overlaps = [v for v in coords1 if v in coords2]
+	dist = [coords1.index(v) + coords2.index(v) +2 for v in overlaps]
+	dist.sort()
+	print(dist)
+	return dist[0]
+	
+(w1, w2) = readInput()
+coords1 = trackWire(w1)
+print("Done with wire 1 (", len(coords1), ")")
+coords2 = trackWire(w2)
+print("Done with wire 2 (", len(coords2), ")")
+overlaps = [v for v in coords1 if v in coords2] # Do ~23.868.000.000 comparisons
+print("Done with finding overlaps")
+dist = [distance(x, y, 0, 0) for (x, y) in overlaps] 
+dist.sort()
+# Puzzle 1
+print(dist[0])
+
+# Puzzle 2
+dist = [coords1.index(v) + coords2.index(v) +2 for v in overlaps]
+dist.sort()
+print(dist[0])
+
+# Using the dumb version because this code is shit and takes forever to finish if done twice
+#print(puzzle1())
+#print(puzzle2())
