@@ -5,37 +5,27 @@ def readInput():
         n = fp.readline().strip().split('-')
         return (int(n[0]), int(n[1]))
 
-def verify(password):
-    adjacent = 0
-    l = [int(n) for n in str(password)]
-    for i in range(len(l)-1):
-        if l[i+1] < l[i]:
-            return False
-        if l[i] == l[i+1]:
-            adjacent = True
-    return adjacent
+def verify1(password):
+    if not password == "".join(sorted(password)):
+        return False
+        
+    return sum([password.count(n) >= 2 for n in password]) > 0 
 
 def verify2(password):
-    adjacent = False
-    l = [int(n) for n in str(password)]
-    innerAdjacent = 0
-    for i in range(len(l)-1):
-        if l[i+1] < l[i]:
-            return False
-        if l[i] == l[i+1]:
-            adjacent = l.count(l[i]) == 2
-    
-    return adjacent
+    if not password == "".join(sorted(password)):
+        return False
+        
+    return sum([password.count(n) == 2 for n in password]) > 0 
 
 def puzzle1():
     (min, max) = readInput()
-    count = sum([verify(p) for p  in range(min, max)])
+    count = sum([verify1(str(p)) for p  in range(min, max)])
     return count
 
 def puzzle2():
     (min, max) = readInput()
-    count = sum([verify2(p) for p  in range(min, max)])
+    count = sum([verify2(str(p)) for p  in range(min, max)])
     return count
 
-print(puzzle1())
-print(puzzle2())
+######### PUZZLE 4 #########
+print("Day 4:", puzzle1(), puzzle2())
