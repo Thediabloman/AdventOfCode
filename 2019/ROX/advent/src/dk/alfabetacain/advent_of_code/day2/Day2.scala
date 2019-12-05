@@ -1,5 +1,7 @@
 package dk.alfabetacain.advent_of_code.day2
 
+import dk.alfabetacain.advent_of_code.IntCode
+
 object Day2 {
 
   def test(): Unit = {
@@ -19,7 +21,8 @@ object Day2 {
     println("Before = " + program.mkString(","))
     program(1) = 12
     program(2) = 2
-    runIntcodeProgram(program)
+    IntCode.run(program)
+    //runIntcodeProgram(program)
     println("Position 0 = " + program(0))
   }
   def puzzle2(): Unit = {
