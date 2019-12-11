@@ -11,7 +11,7 @@ object Day5 {
 
     println("Running...")
     println("Input 1")
-    IntCode.run(program)
+    IntCode.run(program, List(1))
 
     println("Done")
   }
