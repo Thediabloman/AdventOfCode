@@ -199,11 +199,41 @@ object IntCode {
     override def position(): Int = ???
   }
 
-  def run(program: Program, inputs: List[Int] = List.empty): List[Int] = {
-    var state = IntCodeState(program, 0, inputs, List.empty)
-    var i = 0
-    while (state.instructionPointer != -1) {
-      val commandString = program(state.instructionPointer).toString
+  def run(
+      program: Program,
+      inputs: List[Int] = List.empty,
+      instructionPointer: Int = 0
+  ): List[Int] = {
+    var state = IntCodeState(program, instructionPointer, inputs, List.empty)
+    runProgram.run(state).value._1.outputs
+  }
+  def runProgram: IntCodeStateM[Unit] = {
+    for {
+      s <- State.get[IntCodeState]
+      ip = s.instructionPointer
+      _ <- if (ip == -1) {
+        State.pure[IntCodeState, Unit](())
+      } else {
+        for {
+          parsed <- parseCommand(ip)
+          (opcode, parameterModes) = parsed
+          instruction = instructions(opcode)
+          parameters <- getParameters(
+            parameterModes,
+            ip,
+            instruction.numberOfParameters
+          )
+          _ <- instruction.run(parameters)
+          s <- State.get[IntCodeState]
+          _ <- runProgram
+        } yield ()
+      }
+    } yield ()
+  }
+
+  def parseCommand(ip: Int): IntCodeStateM[(String, String)] = {
+    State { state =>
+      val commandString = state.program(state.instructionPointer).toString
       val opcode =
         if (commandString.length == 1)
           commandString.takeRight(1).padTo(2, '0').reverse
@@ -214,34 +244,26 @@ object IntCode {
           commandString.dropRight(1)
         else
           commandString.dropRight(2)
-      val instruction = instructions(opcode)
-      val parameters = getParameters(
-        parameterModes,
-        state.instructionPointer,
-        instruction.numberOfParameters,
-        program
-      )
-      val (newState, _) = instruction.run(parameters).run(state).value
-      state = newState
+      (state, (opcode, parameterModes))
     }
-    state.outputs
   }
 
   def getParameters(
       parameterModes: String,
       base: Int,
-      length: Int,
-      program: Program
-  ): List[Parameter] = {
+      length: Int
+  ): IntCodeStateM[List[Parameter]] = {
     val padded = parameterModes.reverse.padTo(length, '0')
-    padded
+    for {
+      s <- State.get[IntCodeState]
+    } yield padded
       .toCharArray()
       .map(_.toString.toInt)
       .toList
       .zip(List.range(base + 1, base + 1 + length))
       .map {
-        case (0, x) => Position(program, x)
-        case (1, x) => Immediate(program, x)
+        case (0, x) => Position(s.program, x)
+        case (1, x) => Immediate(s.program, x)
         case x =>
           println(s"Unknown mode: $x")
           ???
