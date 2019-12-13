@@ -5,7 +5,11 @@ import dk.alfabetacain.advent_of_code.IntCode
 object Day5 {
 
   def puzzle1(): Unit = {
-    val input = io.Source.fromFile("advent/resources/day5/puzzle_1.txt").getLines.toList.head
+    val input = io.Source
+      .fromFile("advent/resources/day5/puzzle_1.txt")
+      .getLines
+      .toList
+      .head
 
     val program = input.split(",").map(_.toInt)
 
@@ -18,7 +22,11 @@ object Day5 {
 
   def puzzle2(): Unit = {
 
-    val input = io.Source.fromFile("advent/resources/day5/puzzle_1.txt").getLines.toList.head
+    val input = io.Source
+      .fromFile("advent/resources/day5/puzzle_1.txt")
+      .getLines
+      .toList
+      .head
 
     val program = input.split(",").map(_.toInt)
 

@@ -3,7 +3,10 @@ package dk.alfabetacain.advent_of_code.day1
 object Day1 {
 
   def puzzle1(): Unit = {
-    val lines = io.Source.fromFile("advent/resources/day1/puzzle_1.txt").getLines.toList
+    val lines = io.Source
+      .fromFile("advent/resources/day1/puzzle_1.txt")
+      .getLines
+      .toList
       .map(_.toInt)
 
     val result = lines.map(calculateFuel).sum
@@ -13,7 +16,10 @@ object Day1 {
 
   def puzzle2(): Unit = {
 
-    val lines = io.Source.fromFile("advent/resources/day1/puzzle_1.txt").getLines.toList
+    val lines = io.Source
+      .fromFile("advent/resources/day1/puzzle_1.txt")
+      .getLines
+      .toList
       .map(_.toInt)
 
     val result = lines.map(calculateAndAddForFuel).sum
@@ -32,6 +38,5 @@ object Day1 {
       fuelNeeded + calculateAndAddForFuel(fuelNeeded)
     }
   }
-
 
 }
