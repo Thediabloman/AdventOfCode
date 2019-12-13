@@ -1,22 +1,50 @@
 package dk.alfabetacain.advent_of_code
 
+import cats._
+import cats.data._
+import cats.implicits._
+
 object IntCode {
 
   final case class IntCodeState(program: Program, instructionPointer: Int, inputs: List[Int], outputs: List[Int]) {
-    def getInput: (Int, IntCodeState) = {
-      inputs match {
-        case h :: t => 
-          (h, this.copy(inputs = t))
-        case Nil =>
-          println("Input number...")
-          (scala.io.StdIn.readLine().trim().toInt, this)
-      }
-    }
+  }
 
-    def addOutput(output: Int): IntCodeState = {
-      this.copy(outputs = outputs ++ List(output))
+  type IntCodeStateM[A] = State[IntCodeState, A]
+
+  def getInput: IntCodeStateM[Int] = State { s =>
+    s.inputs match {
+      case h :: t => 
+        (s.copy(inputs = t), h)
+      case Nil =>
+        println("Input number...")
+        (s, scala.io.StdIn.readLine().trim().toInt)
     }
   }
+
+  def addOutput(output: Int): IntCodeStateM[Unit] = State { s =>
+    (s.copy(outputs = s.outputs ++ List(output)), ())
+  }
+
+  def updateInstructionPointer(instructionPointer: Option[Int]): IntCodeStateM[Boolean] = instructionPointer match {
+    case None => State.pure[IntCodeState, Boolean](false)
+    case Some(ip) => for {
+      _ <- State.modify[IntCodeState](_.copy(instructionPointer = ip))
+    } yield true
+  }
+
+  def updateIndex(index: Int, value: Int): IntCodeStateM[Unit] = State.modify[IntCodeState] { state =>
+    state.program(index) = value
+    state
+  }
+
+  def incrementInstructionPointer(step: Int): IntCodeStateM[Unit] = {
+    for {
+      s <- State.get[IntCodeState]
+      _ <- State.set(s.copy(instructionPointer = s.instructionPointer + step))
+    } yield ()
+  }
+
+  def halt: IntCodeStateM[Unit] = updateInstructionPointer(-1.some).map(_ => ())
 
   type Program = Array[Int]
 
@@ -35,106 +63,129 @@ object IntCode {
   )
 
   sealed trait Instruction {
-    def run(parameters: List[Parameter], state: IntCodeState): IntCodeState
+    def run(parameters: List[Parameter]): IntCodeStateM[Unit]
     def numberOfParameters: Int
+    def incrementInstructionPointer: IntCodeStateM[Unit] = {
+      IntCode.incrementInstructionPointer(numberOfParameters + 1).map(_ => ())
+    }
   }
   case object Code01 extends Instruction {
     val numberOfParameters = 3
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: param3 :: Nil =>
-        state.program(param3.position()) = param1.value() + param2.value()
-        state
+    override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = {
+      parameters match {
+        case param1 :: param2 :: param3 :: Nil =>
+          for {
+            _ <- updateIndex(param3.position(), param1.value() + param2.value())
+            _ <- incrementInstructionPointer
+          } yield ()
+      }
     }
   }
+        case object Code02 extends Instruction {
+          val numberOfParameters = 3
+          override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+            case param1 :: param2 :: param3 :: Nil =>
+              for {
+                _ <- updateIndex(param3.position(), param1.value() * param2.value())
+                _ <- incrementInstructionPointer
+              } yield ()
+          }
+        }
+            case object Code03 extends Instruction {
+              val numberOfParameters = 1
+              override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                case param1 :: Nil =>
+                  for {
+                    input <- getInput
+                    s <- State.get[IntCodeState]
+                    _ = s.program(param1.position()) = input
+                    _ <- incrementInstructionPointer
+                  } yield ()
+              }
+            }       
+                case object Code04 extends Instruction {
+                  val numberOfParameters = 1
+                  override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                    case p :: Nil =>
+                      println(p.value())
+                      for {
+                        _ <- addOutput(p.value())
+                        _ <- incrementInstructionPointer
+                      } yield ()
+                  }
+                }
 
-  case object Code02 extends Instruction {
-    val numberOfParameters = 3
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: param3 :: Nil =>
-        state.program(param3.position()) = param1.value() * param2.value()
-        state
-    }
-  }
-  case object Code03 extends Instruction {
-    val numberOfParameters = 1
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: Nil =>
-        val (input, newState) = state.getInput
-        newState.program(param1.position()) = input
-        newState
-    }
-  }
-  case object Code04 extends Instruction {
-    val numberOfParameters = 1
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case p :: Nil =>
-        println(p.value())
-        state.addOutput(p.value())
-    }
-  }
+                    case object Code05 extends Instruction {
+                      val numberOfParameters = 2
+                      override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                        case param1 :: param2 :: Nil =>
+                          val newIp = if (param1.value() > 0) Some(param2.value()) else None
+                          for {
+                            updated <- updateInstructionPointer(newIp)
+                            _ <- if (updated) State.pure[IntCodeState, Unit](()) else incrementInstructionPointer
+                          } yield ()
+                      }
+                    }
+                        case object Code06 extends Instruction {
+                          val numberOfParameters = 2
+                          override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                            case param1 :: param2 :: Nil =>
+                              val newIp = if (param1.value() == 0) Some(param2.value()) else None
+                              for {
+                                updated <- updateInstructionPointer(newIp)
+                                _ <- if (updated) State.pure[IntCodeState, Unit](()) else incrementInstructionPointer
+                              } yield ()
+                          }
+                        }
+                            case object Code07 extends Instruction {
+                              val numberOfParameters = 3
+                              override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                                case param1 :: param2 :: param3 :: Nil =>
+                                  for {
+                                    _ <- updateIndex(param3.position(), if (param1.value() < param2.value()) 1 else 0) 
+                                    _ <- incrementInstructionPointer
+                                  } yield ()
+                              }
+                            }
+                                case object Code08 extends Instruction {
+                                  val numberOfParameters = 3
+                                  override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = parameters match {
+                                    case param1 :: param2 :: param3 :: Nil =>
+                                      for {
+                                        _ <- updateIndex(param3.position(), if (param1.value() == param2.value()) 1 else 0)
+                                        _ <- incrementInstructionPointer
+                                      } yield ()
+                                  }
+                                }
+                                    case object Code99 extends Instruction {
+                                      val numberOfParameters = 0
+                                      override def run(parameters: List[Parameter]): IntCodeStateM[Unit] = 
+                                        halt
+                                    }
+                                    sealed trait Parameter {
+                                      def resolve(): Int = value()
+                                      def value(): Int
+                                      def position(): Int
+                                    }
+                                    final case class Position(program: Program, index: Int) extends Parameter {
+                                      override def value(): Int = program(program(index))
+                                      override def position(): Int = program(index)
+                                    }
+                                    final case class Immediate(program: Program, index: Int) extends Parameter {
+                                      override def value(): Int = program(index)
+                                      override def position(): Int = ???
+                                    }
 
-  case object Code05 extends Instruction {
-    val numberOfParameters = 2
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: Nil =>
-        val newIp = if (param1.value() > 0) Some(param2.value()) else None
-        newIp.map(ip => state.copy(instructionPointer = ip)).getOrElse(state)
-    }
-  }
-  case object Code06 extends Instruction {
-    val numberOfParameters = 2
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: Nil =>
-        val newIp = if (param1.value() == 0) Some(param2.value()) else None
-        newIp.map(ip => state.copy(instructionPointer = ip)).getOrElse(state)
-    }
-  }
-  case object Code07 extends Instruction {
-    val numberOfParameters = 3
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: param3 :: Nil =>
-        state.program(param3.position()) = if (param1.value() < param2.value()) 1 else 0
-        state
-    }
-  }
-  case object Code08 extends Instruction {
-    val numberOfParameters = 3
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = parameters match {
-      case param1 :: param2 :: param3 :: Nil =>
-        state.program(param3.position()) = if (param1.value() == param2.value()) 1 else 0
-        state
-    }
-  }
-  case object Code99 extends Instruction {
-    val numberOfParameters = 0
-    override def run(parameters: List[Parameter], state: IntCodeState): IntCodeState = 
-      state.copy(instructionPointer = -1)
-  }
-  sealed trait Parameter {
-    def resolve(): Int = value()
-    def value(): Int
-    def position(): Int
-  }
-  final case class Position(program: Program, index: Int) extends Parameter {
-    override def value(): Int = program(program(index))
-    override def position(): Int = program(index)
-  }
-  final case class Immediate(program: Program, index: Int) extends Parameter {
-    override def value(): Int = program(index)
-    override def position(): Int = ???
-  }
-
-  def run(program: Program, inputs: List[Int] = List.empty): List[Int] = {
-    var state = IntCodeState(program, 0, inputs, List.empty)
-    var i = 0
-    var halt = false
-    while (state.instructionPointer != -1) {
-      val commandString = program(state.instructionPointer).toString
-      val opcode = 
-        if (commandString.length == 1) 
-          commandString.takeRight(1).padTo(2, '0').reverse 
-        else 
-          commandString.takeRight(2)
+                                    def run(program: Program, inputs: List[Int] = List.empty): List[Int] = {
+                                      var state = IntCodeState(program, 0, inputs, List.empty)
+                                      var i = 0
+                                      while (state.instructionPointer != -1) {
+                                        val commandString = program(state.instructionPointer).toString
+                                        val opcode = 
+                                          if (commandString.length == 1) 
+                                            commandString.takeRight(1).padTo(2, '0').reverse 
+                                          else 
+                                            commandString.takeRight(2)
       val parameterModes = 
         if (commandString.length == 1) 
           commandString.dropRight(1) 
@@ -142,26 +193,20 @@ object IntCode {
           commandString.dropRight(2)
       val instruction = instructions(opcode)
       val parameters = getParameters(parameterModes, state.instructionPointer, instruction.numberOfParameters, program)
-      val step = instruction.numberOfParameters+1 // for the opcode
-      val newState = instruction.run(parameters, state)
-      if (newState.instructionPointer == state.instructionPointer) {
-        state = newState.copy(instructionPointer = state.instructionPointer + step)
-      } else {
-        // ip changed
-        state = newState
-      }
-    }
-    state.outputs
-  }
+      val (newState, _) = instruction.run(parameters).run(state).value
+      state = newState
+                                      }
+                                      state.outputs
+                                    }
 
-  def getParameters(parameterModes: String, base: Int, length: Int, program: Program): List[Parameter] = {
-    val padded = parameterModes.reverse.padTo(length, '0')
-    padded.toCharArray().map(_.toString.toInt).toList.zip(List.range(base+1, base+1+length)).map{
-      case (0, x) => Position(program, x)
-      case (1, x) => Immediate(program, x)
-      case x => 
-        println(s"Unknown mode: $x")
-        ???
-    }
-  }
+                                    def getParameters(parameterModes: String, base: Int, length: Int, program: Program): List[Parameter] = {
+                                      val padded = parameterModes.reverse.padTo(length, '0')
+                                      padded.toCharArray().map(_.toString.toInt).toList.zip(List.range(base+1, base+1+length)).map{
+                                        case (0, x) => Position(program, x)
+                                        case (1, x) => Immediate(program, x)
+                                        case x => 
+                                          println(s"Unknown mode: $x")
+                                          ???
+                                      }
+                                    }
 }
